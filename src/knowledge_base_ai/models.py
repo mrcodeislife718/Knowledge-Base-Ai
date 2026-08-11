@@ -15,6 +15,9 @@ class PageRecord:
     page_sha256: str
     duplicate_of: int | None = None
     chapter: str = "Front Matter"
+    document_label: str = "unclassified"
+    quality_score: float = 0.0
+    quality_flags: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -32,6 +35,7 @@ class ChunkRecord:
     extraction_methods: list[str]
     chunk_sha256: str
     pipeline_version: str
+    semantic_label: str = "narrative"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -56,6 +60,9 @@ class RunManifest:
     duplicate_page_count: int = 0
     chunk_count: int = 0
     chapter_count: int = 0
+    low_quality_page_count: int = 0
+    knowledge_tree_path: str | None = None
+    inventory_path: str | None = None
     errors: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
