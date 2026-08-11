@@ -6,7 +6,29 @@ An employer-facing proof project that turns a public-domain scanned book into a 
 
 The system is local-first and auditable. Page and chunk artifacts preserve source hashes, page ranges, chapters, extraction methods, quality signals, semantic labels, pipeline version, and content checksums.
 
-> **Hiring team / evaluator:** start with [DEMO.md](DEMO.md) for the shortest reproducible walkthrough, engineering talking points, and what to inspect after a successful run.
+## Employer demo
+
+For the shortest walkthrough, use the dedicated [DEMO.md](DEMO.md) guide.
+
+### Browser UI
+
+Knowledge-Base AI also includes a local employer-facing dashboard. After installation, launch:
+
+```bash
+kbai-web
+```
+
+Then open `http://127.0.0.1:8000` in a browser. The UI provides:
+
+- PDF/page-image upload and OCR controls
+- live ingestion status
+- latest-run metrics
+- knowledge inventory and chunk inspection
+- semantic search against Chroma
+- page/chapter/source-hash provenance on retrieval results
+- deterministic validation gates and score
+
+The browser surface calls the same Python pipeline functions used by the CLI, so there is no duplicate ingestion implementation.
 
 ## One-command proof
 
@@ -45,6 +67,7 @@ source .venv/bin/activate
 python -m pip install -U pip
 pip install -e .
 kbai demo
+kbai-web
 ```
 
 ### Docker
@@ -98,10 +121,11 @@ python -m pip install -U pip
 pip install -e ".[dev]"
 ```
 
-Confirm the CLI:
+Confirm both interfaces:
 
 ```bash
 kbai --help
+kbai-web
 ```
 
 ## CLI
@@ -189,7 +213,7 @@ kbai manifest
 └── kbai.log                # structured JSONL operational log
 ```
 
-The isolated one-command demo uses `.kbai-demo/` instead.
+The isolated one-command demo uses `.kbai-demo/`. The browser UI uses `.kbai-ui/` so employer walkthroughs do not overwrite CLI/demo artifacts.
 
 ## Architecture
 
@@ -223,7 +247,8 @@ SentenceTransformer embeddings
           ▼
 Run-isolated Chroma collection
           │
-          ├── semantic retrieval + provenance
+          ├── CLI retrieval + provenance
+          ├── FastAPI/browser retrieval + provenance
           └── deterministic validation
 ```
 
@@ -243,19 +268,29 @@ Run-isolated Chroma collection
 
 **Chroma:** embeddings are computed explicitly and upserted with text plus page, chapter, label, checksum, extraction, model, and source provenance. Each ingestion receives a separate collection so stale vectors from an older run cannot leak into current validation or retrieval. Writes are bounded by Chroma's advertised maximum batch size.
 
+**Web surface:** FastAPI is deliberately thin. It invokes the production pipeline and validation functions directly, serves local static assets, keeps uploaded documents under `.kbai-ui/`, prevents overlapping ingestion runs, and exposes failures to the dashboard while preserving full structured logs.
+
 **Observability:** all major stages emit structured JSON logs. Failed ingestion writes a failed manifest before propagating the exception.
 
 **Code style:** the implementation favors typed data models, small single-purpose modules, descriptive names, docstrings where behavior is non-obvious, deterministic artifacts, explicit failure states, and tests over decorative inline comments.
 
 ## Employer demo sequence
 
-The shortest demonstration is simply:
+For the visual walkthrough:
+
+```bash
+kbai-web
+```
+
+Open the dashboard, upload a source, inspect the knowledge inventory, run semantic retrieval, expand provenance, and run validation.
+
+For the automated proof:
 
 ```bash
 kbai demo
 ```
 
-For a walkthrough where each responsibility is shown separately:
+For a CLI walkthrough where each responsibility is shown separately:
 
 ```bash
 kbai ingest data/book.pdf --title "Alice's Adventures in Wonderland" --author "Lewis Carroll"
@@ -275,4 +310,4 @@ GitHub Actions compiles the source and runs the unit test suite on pushes and pu
 
 ## Production boundary
 
-This repository is production-quality **proof code**, not a claim that a single-process local vector database is the final production deployment. Chroma's persistent local client is appropriate for the self-contained demo; a deployed service should use a server-backed vector store and production storage/worker infrastructure. Natural extensions include layout-aware OCR, deskew/image preprocessing, fuzzy and semantic near-duplicate detection, configurable OCR language packs and symbol dictionaries, human-review queues, distributed batch workers, object storage, evaluation datasets, reranking, remote vector stores, and API serving.
+This repository is production-quality **proof code**, not a claim that a single-process local vector database is the final production deployment. Chroma's persistent local client is appropriate for the self-contained demo; a deployed service should use a server-backed vector store and production storage/worker infrastructure. Natural extensions include layout-aware OCR, deskew/image preprocessing, fuzzy and semantic near-duplicate detection, configurable OCR language packs and symbol dictionaries, human-review queues, distributed batch workers, object storage, evaluation datasets, reranking, remote vector stores, authentication, and hosted API serving.
