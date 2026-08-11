@@ -8,6 +8,7 @@ on:
       - "src/**"
       - "pyproject.toml"
       - "Dockerfile"
+      - ".github/workflows/full-demo.yml"
 
 jobs:
   demo:
@@ -30,6 +31,20 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e .
+
+      - name: Smoke-test browser service
+        run: |
+          kbai-web > /tmp/kbai-web.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8000/api/health > /tmp/kbai-health.json; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:8000/api/health | grep '"status":"ok"'
+          curl --fail --silent http://127.0.0.1:8000/ | grep "Knowledge-Base AI"
 
       - name: Run full public-domain demo
         run: kbai demo
