@@ -24,12 +24,39 @@ The command performs the full demonstration automatically:
 6. labels pages and semantic chunks,
 7. builds a document → chapter → chunk knowledge tree,
 8. computes local SentenceTransformer embeddings,
-9. upserts chunks and provenance into persistent Chroma,
+9. upserts chunks and provenance into a run-isolated persistent Chroma collection,
 10. runs deterministic quality gates,
 11. executes a real semantic retrieval query,
 12. prints `DEMO PASSED` only when validation succeeds.
 
 Use `kbai demo --force-ocr` to force Tesseract across the entire scan. This is intentionally slower and proves the pure scan/OCR path.
+
+## Reproducible company demo
+
+The company has three supported ways to prove the project works.
+
+### Local
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip
+pip install -e .
+kbai demo
+```
+
+### Docker
+
+```bash
+docker build -t knowledge-base-ai .
+docker run --rm -v "$PWD/.kbai-demo:/app/.kbai-demo" knowledge-base-ai demo
+```
+
+The container includes Python 3.11, Tesseract OCR, and the application runtime.
+
+### GitHub Actions
+
+Open **Actions → full-demo → Run workflow**. The workflow installs Tesseract and the Python package, runs `kbai demo`, and uploads the manifest, inventory, knowledge tree, validation report, and structured log as workflow artifacts. The workflow fails if the end-to-end demo fails.
 
 ## Why this project exists
 
@@ -192,7 +219,7 @@ Paragraph/sentence-aware semantic chunking
 SentenceTransformer embeddings
           │
           ▼
-Persistent Chroma collection
+Run-isolated Chroma collection
           │
           ├── semantic retrieval + provenance
           └── deterministic validation
@@ -212,9 +239,11 @@ Persistent Chroma collection
 
 **Embeddings:** `sentence-transformers/all-MiniLM-L6-v2` is the default local embedding model. The exact model name is stored with vectors and in the run manifest.
 
-**Chroma:** embeddings are computed explicitly and upserted with text plus page, chapter, label, checksum, extraction, model, and source provenance.
+**Chroma:** embeddings are computed explicitly and upserted with text plus page, chapter, label, checksum, extraction, model, and source provenance. Each ingestion receives a separate collection so stale vectors from an older run cannot leak into current validation or retrieval. Writes are bounded by Chroma's advertised maximum batch size.
 
 **Observability:** all major stages emit structured JSON logs. Failed ingestion writes a failed manifest before propagating the exception.
+
+**Code style:** the implementation favors typed data models, small single-purpose modules, descriptive names, docstrings where behavior is non-obvious, deterministic artifacts, explicit failure states, and tests over decorative inline comments.
 
 ## Employer demo sequence
 
@@ -240,8 +269,8 @@ pytest -q
 ruff check .
 ```
 
-GitHub Actions also compiles the source and runs the unit test suite on pushes and pull requests.
+GitHub Actions compiles the source and runs the unit test suite on pushes and pull requests. The separate `full-demo` workflow exists for the network/model/OCR integration proof.
 
-## Scope
+## Production boundary
 
-This is deliberately a small proof rather than a production SaaS. Natural production extensions include layout-aware OCR, deskew/image preprocessing, fuzzy and semantic near-duplicate detection, configurable OCR language packs and symbol dictionaries, human-review queues, distributed batch workers, object storage, evaluation datasets, reranking, remote vector stores, and API serving.
+This repository is production-quality **proof code**, not a claim that a single-process local vector database is the final production deployment. Chroma's persistent local client is appropriate for the self-contained demo; a deployed service should use a server-backed vector store and production storage/worker infrastructure. Natural extensions include layout-aware OCR, deskew/image preprocessing, fuzzy and semantic near-duplicate detection, configurable OCR language packs and symbol dictionaries, human-review queues, distributed batch workers, object storage, evaluation datasets, reranking, remote vector stores, and API serving.
