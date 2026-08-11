@@ -15,20 +15,20 @@ class VectorStore:
         self.model_name = model_name
         self.model = SentenceTransformer(model_name)
 
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        return self.model.encode(texts, normalize_embeddings=True, show_progress_bar=False).tolist()
+
     def upsert_chunks(self, chunks: list[ChunkRecord]) -> None:
         if not chunks:
             return
         texts = [chunk.text for chunk in chunks]
-        embeddings = self.model.encode(
-            texts,
-            normalize_embeddings=True,
-            show_progress_bar=False,
-        ).tolist()
+        embeddings = self.embed(texts)
         metadatas = []
         for chunk in chunks:
             metadatas.append(
                 {
                     "chapter": chunk.chapter,
+                    "semantic_label": chunk.semantic_label,
                     "page_start": chunk.page_start,
                     "page_end": chunk.page_end,
                     "source_path": chunk.source_path,
@@ -47,7 +47,7 @@ class VectorStore:
         )
 
     def query(self, text: str, top_k: int = 5) -> dict:
-        embedding = self.model.encode([text], normalize_embeddings=True, show_progress_bar=False).tolist()
+        embedding = self.embed([text])
         return self.collection.query(
             query_embeddings=embedding,
             n_results=top_k,
