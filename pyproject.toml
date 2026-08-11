@@ -4,19 +4,22 @@ build-backend = "hatchling.build"
 
 [project]
 name = "knowledge-base-ai"
-version = "0.1.0"
-description = "Auditable book-to-vector knowledge-base pipeline: OCR, cleanup, metadata, deduplication, semantic chunking, embeddings, Chroma retrieval, and validation."
+version = "0.2.0"
+description = "Auditable book-to-vector knowledge-base pipeline: OCR, cleanup, metadata, deduplication, semantic chunking, embeddings, Chroma retrieval, validation, and a local web UI."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Charles Castillo" }]
 dependencies = [
   "chromadb>=1.0",
+  "fastapi>=0.116",
   "pymupdf>=1.26",
+  "python-multipart>=0.0.20",
   "sentence-transformers>=5.0",
   "typer>=0.16",
   "rich>=14.0",
   "requests>=2.32",
+  "uvicorn>=0.35",
 ]
 
 [project.optional-dependencies]
@@ -24,6 +27,7 @@ dev = ["pytest>=8.0", "ruff>=0.12"]
 
 [project.scripts]
 kbai = "knowledge_base_ai.cli:app"
+kbai-web = "knowledge_base_ai.web:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/knowledge_base_ai"]
