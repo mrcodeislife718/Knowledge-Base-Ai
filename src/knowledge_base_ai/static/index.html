@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Knowledge-Base AI document ingestion, retrieval, provenance, and validation dashboard." />
+  <title>Knowledge-Base AI</title>
+  <link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar" aria-label="Primary navigation">
+      <div><div class="brand-mark" aria-hidden="true">K</div><div class="brand-copy"><strong>Knowledge-Base AI</strong><span>Document Intelligence</span></div></div>
+      <nav>
+        <button class="nav-item active" data-view="overview">Overview</button>
+        <button class="nav-item" data-view="ingest">Ingest</button>
+        <button class="nav-item" data-view="knowledge">Knowledge Base</button>
+        <button class="nav-item" data-view="search">Search</button>
+        <button class="nav-item" data-view="validation">Validation</button>
+      </nav>
+      <div class="sidebar-footer"><span class="status-dot"></span><span id="service-status">Local service ready</span></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><p class="eyebrow">Employer Demo Surface</p><h1 id="view-title">Pipeline Overview</h1></div>
+        <div class="run-pill"><span id="runtime-status">IDLE</span><span id="run-id">No run yet</span></div>
+      </header>
+
+      <section class="view active" id="view-overview">
+        <div class="hero-card">
+          <div><p class="eyebrow">Auditable document-to-vector workflow</p><h2>Turn scanned source material into a validated, searchable knowledge base.</h2><p>OCR-aware extraction, cleanup, metadata, deduplication, chapter detection, semantic chunking, embeddings, Chroma retrieval, provenance, and deterministic QA.</p></div>
+          <button class="primary" data-jump="ingest">Ingest a document</button>
+        </div>
+        <div class="metrics" aria-label="Latest run metrics">
+          <article><span>Pages</span><strong id="metric-pages">—</strong><small>source pages processed</small></article>
+          <article><span>Duplicates</span><strong id="metric-duplicates">—</strong><small>removed with lineage</small></article>
+          <article><span>Chunks</span><strong id="metric-chunks">—</strong><small>semantic retrieval units</small></article>
+          <article><span>Chapters</span><strong id="metric-chapters">—</strong><small>detected structure</small></article>
+          <article><span>Validation</span><strong id="metric-validation">—</strong><small>quality gate score</small></article>
+        </div>
+        <section class="panel">
+          <div class="panel-head"><div><p class="eyebrow">Pipeline</p><h3>Processing stages</h3></div><span id="pipeline-message">Ready</span></div>
+          <div class="pipeline-grid">
+            <div class="stage"><span>01</span><strong>Extract / OCR</strong><small>Native text first, OCR fallback</small></div>
+            <div class="stage"><span>02</span><strong>Clean + QA</strong><small>Normalize and score readability</small></div>
+            <div class="stage"><span>03</span><strong>Deduplicate</strong><small>SHA-256 content fingerprints</small></div>
+            <div class="stage"><span>04</span><strong>Structure</strong><small>Chapter and semantic labels</small></div>
+            <div class="stage"><span>05</span><strong>Embed</strong><small>Local normalized vectors</small></div>
+            <div class="stage"><span>06</span><strong>Validate</strong><small>Retrieval and provenance gates</small></div>
+          </div>
+        </section>
+      </section>
+
+      <section class="view" id="view-ingest">
+        <div class="two-col">
+          <section class="panel">
+            <div class="panel-head"><div><p class="eyebrow">New ingestion</p><h3>Upload source material</h3></div></div>
+            <form id="ingest-form">
+              <label class="upload-box" for="source-file"><input id="source-file" name="file" type="file" accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.bmp" required /><strong id="upload-title">Choose PDF or page image</strong><span id="upload-copy">PDF, PNG, JPEG, TIFF, or BMP</span></label>
+              <div class="form-grid"><label>Title<input id="title" name="title" type="text" placeholder="Optional title override" /></label><label>Author<input id="author" name="author" type="text" placeholder="Optional author override" /></label></div>
+              <label class="check-row"><input id="force-ocr" name="force_ocr" type="checkbox" /> Force OCR on every page</label>
+              <button class="primary full" type="submit">Start ingestion</button>
+            </form>
+          </section>
+          <section class="panel status-panel"><p class="eyebrow">Runtime</p><h3 id="ingest-stage">Ready</h3><div class="progress"><div id="progress-bar"></div></div><p id="ingest-message">Upload a source document to begin.</p><pre id="ingest-error" class="error-box hidden"></pre></section>
+        </div>
+      </section>
+
+      <section class="view" id="view-knowledge">
+        <section class="panel"><div class="panel-head"><div><p class="eyebrow">Structured corpus</p><h3>Knowledge inventory</h3></div><button class="secondary" id="refresh-knowledge">Refresh</button></div><div class="knowledge-summary" id="knowledge-summary">No ingestion run loaded.</div><div class="table-wrap"><table><thead><tr><th>Chunk</th><th>Chapter</th><th>Pages</th><th>Label</th><th>Preview</th></tr></thead><tbody id="chunk-table"></tbody></table></div></section>
+      </section>
+
+      <section class="view" id="view-search">
+        <section class="panel search-panel"><div class="panel-head"><div><p class="eyebrow">Semantic retrieval</p><h3>Search the vector knowledge base</h3></div></div><form id="search-form" class="search-form"><input id="search-query" type="search" placeholder="Ask about the ingested source…" required minlength="2" /><select id="top-k" aria-label="Number of results"><option>3</option><option selected>5</option><option>10</option></select><button class="primary" type="submit">Search</button></form><div id="search-results" class="results empty-state">Run a search to inspect ranked chunks and provenance.</div></section>
+      </section>
+
+      <section class="view" id="view-validation">
+        <section class="panel"><div class="panel-head"><div><p class="eyebrow">Quality assurance</p><h3>Validation gates</h3></div><button class="primary" id="run-validation">Run validation</button></div><div class="validation-hero"><strong id="validation-score">—</strong><span id="validation-label">No validation run yet</span></div><div id="validation-checks" class="checks"></div></section>
+      </section>
+    </main>
+  </div>
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>
