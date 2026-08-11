@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .catalog import write_catalog_artifacts
 from .document_io import document_metadata, extract_pages, source_sha256
 from .logging_utils import configure_logging, log_event
 from .models import RunManifest
@@ -60,7 +61,14 @@ def ingest(
     try:
         pages = extract_pages(source, force_ocr=force_ocr)
         manifest.page_count = len(pages)
-        log_event(logger, "extraction_complete", "Page extraction complete", pages=len(pages))
+        manifest.low_quality_page_count = sum(page.quality_score < 0.72 for page in pages)
+        log_event(
+            logger,
+            "extraction_complete",
+            "Page extraction and OCR quality scoring complete",
+            pages=len(pages),
+            low_quality_pages=manifest.low_quality_page_count,
+        )
 
         unique_pages, duplicate_count = deduplicate_pages(pages)
         manifest.unique_page_count = len(unique_pages)
@@ -74,13 +82,18 @@ def ingest(
         log_event(
             logger,
             "chunking_complete",
-            "Chapter detection and semantic chunking complete",
+            "Chapter detection, labeling and semantic chunking complete",
             chapters=manifest.chapter_count,
             chunks=manifest.chunk_count,
         )
 
         _write_jsonl(workdir / "pages" / f"{run_id}.jsonl", [page.to_dict() for page in pages])
         _write_jsonl(workdir / "chunks" / f"{run_id}.jsonl", [chunk.to_dict() for chunk in chunks])
+
+        inventory_path, tree_path = write_catalog_artifacts(workdir, manifest, pages, chunks)
+        manifest.inventory_path = str(inventory_path)
+        manifest.knowledge_tree_path = str(tree_path)
+        log_event(logger, "catalog_complete", "Inventory and knowledge tree written")
 
         store = VectorStore(workdir / "chroma", collection_name, model_name)
         store.upsert_chunks(chunks)
