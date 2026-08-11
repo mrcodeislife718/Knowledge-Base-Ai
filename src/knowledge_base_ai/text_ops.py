@@ -6,6 +6,7 @@ from collections import defaultdict
 
 from . import PIPELINE_VERSION
 from .models import ChunkRecord, PageRecord
+from .quality import classify_chunk, classify_page
 
 _CHAPTER_RE = re.compile(r"^(chapter|book|part)\s+([ivxlcdm]+|\d+)(?:\s*[:.\-–—]?\s*(.*))?$", re.I)
 _SENTENCE_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z\"'])")
@@ -69,6 +70,7 @@ def assign_chapters(pages: list[PageRecord]) -> list[PageRecord]:
                 current = found
                 break
         page.chapter = current
+        page.document_label = classify_page(page.text, current)
     return pages
 
 
@@ -90,11 +92,7 @@ def _split_large_paragraph(paragraph: str, target_chars: int) -> list[str]:
     return pieces
 
 
-def semantic_chunks(
-    pages: list[PageRecord],
-    target_chars: int = 1200,
-    overlap_chars: int = 180,
-) -> list[ChunkRecord]:
+def semantic_chunks(pages: list[PageRecord], target_chars: int = 1200, overlap_chars: int = 180) -> list[ChunkRecord]:
     by_chapter: dict[str, list[PageRecord]] = defaultdict(list)
     for page in pages:
         by_chapter[page.chapter].append(page)
@@ -133,12 +131,7 @@ def semantic_chunks(
     return chunks
 
 
-def _make_chunk(
-    sequence: int,
-    chapter: str,
-    units: list[tuple[str, int, str]],
-    source_page: PageRecord,
-) -> ChunkRecord:
+def _make_chunk(sequence: int, chapter: str, units: list[tuple[str, int, str]], source_page: PageRecord) -> ChunkRecord:
     text = "\n\n".join(unit[0] for unit in units)
     page_numbers = [unit[1] for unit in units]
     digest = sha256_text(text)
@@ -153,4 +146,5 @@ def _make_chunk(
         extraction_methods=sorted({unit[2] for unit in units}),
         chunk_sha256=digest,
         pipeline_version=PIPELINE_VERSION,
+        semantic_label=classify_chunk(text),
     )
