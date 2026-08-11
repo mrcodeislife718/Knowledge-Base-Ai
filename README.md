@@ -6,6 +6,8 @@ An employer-facing proof project that turns a public-domain scanned book into a 
 
 The system is local-first and auditable. Page and chunk artifacts preserve source hashes, page ranges, chapters, extraction methods, quality signals, semantic labels, pipeline version, and content checksums.
 
+> **Hiring team / evaluator:** start with [DEMO.md](DEMO.md) for the shortest reproducible walkthrough, engineering talking points, and what to inspect after a successful run.
+
 ## One-command proof
 
 After installation, run:
