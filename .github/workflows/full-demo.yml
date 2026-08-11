@@ -2,6 +2,12 @@ name: full-demo
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "pyproject.toml"
+      - "Dockerfile"
 
 jobs:
   demo:
