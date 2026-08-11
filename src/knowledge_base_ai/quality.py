@@ -1,10 +1,16 @@
+"""Explainable OCR/readability scoring and lightweight semantic labeling.
+
+These heuristics are deliberately deterministic: reviewers can inspect why a
+page was flagged instead of relying on an opaque model for the proof project.
+"""
+
 from __future__ import annotations
 
 import re
 
 
 def score_text_quality(text: str) -> tuple[float, list[str]]:
-    """Heuristic OCR/readability score in [0, 1] with human-readable flags."""
+    """Return a readability score in [0, 1] plus actionable quality flags."""
     stripped = text.strip()
     if not stripped:
         return 0.0, ["empty_text"]
@@ -13,9 +19,17 @@ def score_text_quality(text: str) -> tuple[float, list[str]]:
     alnum = sum(ch.isalnum() for ch in stripped)
     printable = sum(ch.isprintable() or ch in "\n\t" for ch in stripped)
     replacement = stripped.count("�")
-    suspicious_tokens = len(re.findall(r"(?:[^\w\s]{4,}|\w*\d\w*[A-Za-z]\w*|[A-Za-z]\w*\d\w*)", stripped))
+    suspicious_tokens = len(
+        re.findall(
+            r"(?:[^\w\s]{4,}|\w*\d\w*[A-Za-z]\w*|[A-Za-z]\w*\d\w*)",
+            stripped,
+        )
+    )
     words = re.findall(r"[A-Za-z']+", stripped)
-    one_char_words = sum(len(word) == 1 and word.lower() not in {"a", "i"} for word in words)
+    one_char_words = sum(
+        len(word) == 1 and word.lower() not in {"a", "i"}
+        for word in words
+    )
 
     printable_ratio = printable / chars
     alnum_ratio = alnum / chars
@@ -42,12 +56,11 @@ def score_text_quality(text: str) -> tuple[float, list[str]]:
 
 
 def classify_page(text: str, chapter: str) -> str:
+    """Assign a coarse, explainable structural label to a page."""
     sample = text[:1200].lower()
     if chapter == "Front Matter":
         if "contents" in sample or "table of contents" in sample:
             return "table-of-contents"
-        if "title" in sample or "published" in sample or "publisher" in sample:
-            return "front-matter"
         return "front-matter"
     if re.search(r"\bchapter\s+(?:[ivxlcdm]+|\d+)\b", sample, re.I):
         return "chapter-opening"
@@ -55,6 +68,7 @@ def classify_page(text: str, chapter: str) -> str:
 
 
 def classify_chunk(text: str) -> str:
+    """Assign a simple semantic label useful for downstream filtering."""
     sample = text.strip().lower()
     if not sample:
         return "empty"
