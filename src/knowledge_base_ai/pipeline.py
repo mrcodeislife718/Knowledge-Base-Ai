@@ -39,8 +39,10 @@ def ingest(
     overlap_chars: int = 180,
     verbose: bool = False,
 ) -> RunManifest:
+    """Execute one isolated, auditable document-ingestion run."""
     logger = configure_logging(workdir, verbose)
     run_id = uuid.uuid4().hex[:12]
+    effective_collection = f"{collection_name}-{run_id}"
     metadata = document_metadata(source)
     manifest = RunManifest(
         run_id=run_id,
@@ -53,10 +55,17 @@ def ingest(
         author=author or metadata.get("author") or "Unknown",
         document_metadata=metadata,
         embedding_model=model_name,
-        collection_name=collection_name,
+        collection_name=effective_collection,
         force_ocr=force_ocr,
     )
-    log_event(logger, "run_started", "Starting ingestion", run_id=run_id, source=str(source))
+    log_event(
+        logger,
+        "run_started",
+        "Starting ingestion",
+        run_id=run_id,
+        source=str(source),
+        collection=effective_collection,
+    )
 
     try:
         pages = extract_pages(source, force_ocr=force_ocr)
@@ -76,7 +85,11 @@ def ingest(
         log_event(logger, "dedupe_complete", "Deduplication complete", duplicates=duplicate_count)
 
         assign_chapters(unique_pages)
-        chunks = semantic_chunks(unique_pages, target_chars=target_chars, overlap_chars=overlap_chars)
+        chunks = semantic_chunks(
+            unique_pages,
+            target_chars=target_chars,
+            overlap_chars=overlap_chars,
+        )
         manifest.chunk_count = len(chunks)
         manifest.chapter_count = len({chunk.chapter for chunk in chunks})
         log_event(
@@ -87,17 +100,29 @@ def ingest(
             chunks=manifest.chunk_count,
         )
 
-        _write_jsonl(workdir / "pages" / f"{run_id}.jsonl", [page.to_dict() for page in pages])
-        _write_jsonl(workdir / "chunks" / f"{run_id}.jsonl", [chunk.to_dict() for chunk in chunks])
+        _write_jsonl(
+            workdir / "pages" / f"{run_id}.jsonl",
+            [page.to_dict() for page in pages],
+        )
+        _write_jsonl(
+            workdir / "chunks" / f"{run_id}.jsonl",
+            [chunk.to_dict() for chunk in chunks],
+        )
 
         inventory_path, tree_path = write_catalog_artifacts(workdir, manifest, pages, chunks)
         manifest.inventory_path = str(inventory_path)
         manifest.knowledge_tree_path = str(tree_path)
         log_event(logger, "catalog_complete", "Inventory and knowledge tree written")
 
-        store = VectorStore(workdir / "chroma", collection_name, model_name)
+        store = VectorStore(workdir / "chroma", effective_collection, model_name)
         store.upsert_chunks(chunks)
-        log_event(logger, "vector_ingest_complete", "Embeddings stored in Chroma", count=store.count())
+        log_event(
+            logger,
+            "vector_ingest_complete",
+            "Embeddings stored in isolated Chroma collection",
+            count=store.count(),
+            collection=effective_collection,
+        )
 
         manifest.status = "completed"
         manifest.completed_at = _now()
@@ -105,24 +130,39 @@ def ingest(
         manifest.status = "failed"
         manifest.completed_at = _now()
         manifest.errors.append(f"{type(exc).__name__}: {exc}")
-        logger.exception("Ingestion failed", extra={"event": "run_failed", "data": {"run_id": run_id}})
+        logger.exception(
+            "Ingestion failed",
+            extra={"event": "run_failed", "data": {"run_id": run_id}},
+        )
         _save_manifest(workdir, manifest)
         raise
 
     _save_manifest(workdir, manifest)
-    log_event(logger, "run_completed", "Ingestion completed", run_id=run_id, chunks=manifest.chunk_count)
+    log_event(
+        logger,
+        "run_completed",
+        "Ingestion completed",
+        run_id=run_id,
+        chunks=manifest.chunk_count,
+    )
     return manifest
 
 
 def _save_manifest(workdir: Path, manifest: RunManifest) -> Path:
     path = workdir / "manifests" / f"{manifest.run_id}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(manifest.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
+    path.write_text(
+        json.dumps(manifest.to_dict(), indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
     return path
 
 
 def latest_manifest(workdir: Path = Path(".kbai")) -> dict:
-    manifests = sorted((workdir / "manifests").glob("*.json"), key=lambda p: p.stat().st_mtime)
+    manifest_dir = workdir / "manifests"
+    if not manifest_dir.exists():
+        raise FileNotFoundError("No ingestion manifests found. Run `kbai ingest` first.")
+    manifests = sorted(manifest_dir.glob("*.json"), key=lambda p: p.stat().st_mtime)
     if not manifests:
         raise FileNotFoundError("No ingestion manifests found. Run `kbai ingest` first.")
     return json.loads(manifests[-1].read_text(encoding="utf-8"))
@@ -132,4 +172,8 @@ def load_chunks(workdir: Path, run_id: str) -> list[dict]:
     path = workdir / "chunks" / f"{run_id}.jsonl"
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
