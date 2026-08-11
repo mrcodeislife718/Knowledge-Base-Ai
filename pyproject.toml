@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "knowledge-base-ai"
-version = "0.2.0"
-description = "Auditable book-to-vector knowledge-base pipeline: OCR, cleanup, metadata, deduplication, semantic chunking, embeddings, Chroma retrieval, validation, and a local web UI."
+version = "0.4.0"
+description = "Auditable document-to-vector knowledge-base pipeline with OCR, provenance, Chroma retrieval, validation, telemetry, analytics, and an employer-facing operator console."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
