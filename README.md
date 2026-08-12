@@ -6,13 +6,73 @@ An employer-facing proof project that turns a public-domain scanned book into a 
 
 The system is local-first and auditable. Page and chunk artifacts preserve source hashes, page ranges, chapters, extraction methods, quality signals, semantic labels, pipeline version, and content checksums.
 
+## Visual proof — no install required
+
+The screenshots below come from the working local application and show the same pipeline that is exposed through the CLI and FastAPI service.
+
+### 1. Operator console and pipeline overview
+
+![Knowledge-Base AI overview](docs/kb-ai-web-img-home.png)
+
+The overview presents the complete document-to-vector workflow in one place: OCR-aware extraction, cleanup, deduplication, structural analysis, embeddings, retrieval, provenance, telemetry, and validation.
+
+### 2. Source ingestion and OCR controls
+
+![Knowledge-Base AI ingest surface](docs/kb-ai-web-img-ingest.png)
+
+The ingestion surface accepts source documents, supports title/author metadata overrides, exposes forced OCR for scan-heavy material, and reports runtime status without duplicating the underlying pipeline implementation.
+
+### 3. Structured knowledge inventory
+
+![Knowledge-Base AI knowledge base](docs/kb-ai-web-img-knowledge-base.png)
+
+The knowledge-base view exposes the curated retrieval corpus as inspectable chunks with chapter, page range, semantic label, and text preview instead of hiding preprocessing behind a black box.
+
+### 4. Real semantic retrieval
+
+![Knowledge-Base AI semantic search](docs/kb-ai-web-img-after-search.png)
+
+Search runs against the persisted Chroma collection and returns ranked passages with page/chapter context and provenance fields suitable for debugging, evaluation, and downstream LLM grounding.
+
+### 5. Corpus analytics and curation signals
+
+![Knowledge-Base AI analytics](docs/kb-ai-web-img-analytics.png)
+
+The analytics surface makes dataset quality visible through OCR/readability metrics, low-quality page counts, deduplication rate, chunk sizing, semantic-label distribution, and document structure.
+
+### 6. OCR and provenance inspector
+
+![Knowledge-Base AI inspector](docs/kb-ai-web-img-inspector.png)
+
+The inspector exposes page-level evidence, including extraction method, quality score, flags, raw versus cleaned text, and downloadable machine-readable evidence artifacts.
+
+### 7. Live operational telemetry
+
+![Knowledge-Base AI telemetry](docs/kb-ai-web-img-telemetry.png)
+
+Telemetry shows pipeline runtime state and structured events so extraction, curation, vector ingestion, failures, and completion can be inspected rather than inferred.
+
+### 8. Deterministic quality validation
+
+![Knowledge-Base AI validation](docs/kb-ai-web-img-validation.png)
+
+The validation surface reports explicit release gates for ingestion completion, page accounting, chunk integrity, provenance, OCR readability, generated inventories, vector counts, embedding quality, and live retrieval.
+
+### 9. Completed end-to-end run
+
+![Knowledge-Base AI completed run](docs/kb-ai-web-img-after-refresh.png)
+
+A completed public-domain book run demonstrates that the UI is backed by a real processed corpus rather than static mock data.
+
+Additional captured states are preserved under [`docs/`](docs/) for review, including demo execution, refresh behavior, populated knowledge views, and page-inspector states.
+
 ## Employer demo
 
-For the shortest walkthrough, use the dedicated [DEMO.md](DEMO.md) guide.
+For the shortest walkthrough, use the dedicated [DEMO.md](DEMO.md) guide. Deeper engineering documentation is available in [docs/README.md](docs/README.md), including [architecture](docs/ARCHITECTURE.md), [operations](docs/OPERATIONS.md), [quality and validation](docs/QUALITY_AND_VALIDATION.md), and the [employer walkthrough](docs/EMPLOYER_WALKTHROUGH.md).
 
 ### Browser UI
 
-Knowledge-Base AI also includes a local employer-facing dashboard. After installation, launch:
+Knowledge-Base AI includes a local employer-facing dashboard. After installation, launch:
 
 ```bash
 kbai-web
@@ -26,6 +86,8 @@ Then open `http://127.0.0.1:8000` in a browser. The UI provides:
 - knowledge inventory and chunk inspection
 - semantic search against Chroma
 - page/chapter/source-hash provenance on retrieval results
+- corpus analytics and OCR quality inspection
+- structured telemetry and evidence exports
 - deterministic validation gates and score
 
 The browser surface calls the same Python pipeline functions used by the CLI, so there is no duplicate ingestion implementation.
@@ -50,7 +112,7 @@ The command performs the full demonstration automatically:
 8. computes local SentenceTransformer embeddings,
 9. upserts chunks and provenance into a run-isolated persistent Chroma collection,
 10. runs deterministic quality gates,
-11. executes a real semantic retrieval query,
+11. executes a real retrieval query,
 12. prints `DEMO PASSED` only when validation succeeds.
 
 Use `kbai demo --force-ocr` to force Tesseract across the entire scan. This is intentionally slower and proves the pure scan/OCR path.
@@ -282,7 +344,7 @@ For the visual walkthrough:
 kbai-web
 ```
 
-Open the dashboard, upload a source, inspect the knowledge inventory, run semantic retrieval, expand provenance, and run validation.
+Open the dashboard, upload a source, inspect the knowledge inventory, run semantic retrieval, expand provenance, inspect telemetry and analytics, and run validation.
 
 For the automated proof:
 
