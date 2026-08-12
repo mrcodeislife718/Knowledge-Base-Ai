@@ -12,7 +12,7 @@ from .quality import classify_chunk, classify_page
 
 _CHAPTER_RE = re.compile(
     r"^(chapter|book|part)\s+([ivxlcdm]+|\d+)(?:\s*[:.\-–—]?\s*(.*))?$",
-    re.I,
+    re.IGNORECASE,
 )
 _SENTENCE_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z\"'])")
 _MIN_PARAGRAPH_CHARS = 20
