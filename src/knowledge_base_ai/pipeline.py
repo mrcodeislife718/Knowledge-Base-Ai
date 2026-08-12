@@ -14,6 +14,7 @@ from .text_ops import assign_chapters, deduplicate_pages, semantic_chunks
 
 DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 DEFAULT_COLLECTION = "knowledge-base-ai"
+_MIN_RETRIEVAL_QUALITY = 0.72
 
 
 def _now() -> str:
@@ -63,7 +64,7 @@ def ingest(
     try:
         pages = extract_pages(source, force_ocr=force_ocr)
         manifest.page_count = len(pages)
-        manifest.low_quality_page_count = sum(page.quality_score < 0.72 for page in pages)
+        manifest.low_quality_page_count = sum(page.quality_score < _MIN_RETRIEVAL_QUALITY for page in pages)
         log_event(logger, "extraction_complete", "Page extraction and OCR quality scoring complete", pages=len(pages), low_quality_pages=manifest.low_quality_page_count)
 
         unique_pages, duplicate_count = deduplicate_pages(pages)
@@ -72,7 +73,16 @@ def ingest(
         log_event(logger, "dedupe_complete", "Deduplication complete", duplicates=duplicate_count)
 
         assign_chapters(unique_pages)
-        chunks = semantic_chunks(unique_pages, target_chars=target_chars, overlap_chars=overlap_chars)
+        curated_pages = [page for page in unique_pages if page.quality_score >= _MIN_RETRIEVAL_QUALITY]
+        log_event(
+            logger,
+            "curation_complete",
+            "Low-quality pages excluded from retrieval while preserved in page-level audit artifacts",
+            retrieval_pages=len(curated_pages),
+            excluded_low_quality_pages=len(unique_pages) - len(curated_pages),
+            threshold=_MIN_RETRIEVAL_QUALITY,
+        )
+        chunks = semantic_chunks(curated_pages, target_chars=target_chars, overlap_chars=overlap_chars)
         manifest.chunk_count = len(chunks)
         manifest.chapter_count = len({chunk.chapter for chunk in chunks})
         log_event(logger, "chunking_complete", "Chapter detection, labeling and semantic chunking complete", chapters=manifest.chapter_count, chunks=manifest.chunk_count)
