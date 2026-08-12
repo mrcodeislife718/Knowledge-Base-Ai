@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "knowledge-base-ai"
-version = "0.4.0"
+version = "0.4.1"
 description = "Auditable document-to-vector knowledge-base pipeline with OCR, provenance, Chroma retrieval, validation, telemetry, analytics, and an employer-facing operator console."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -38,3 +38,6 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint.per-file-ignores]
+"src/knowledge_base_ai/web.py" = ["B008", "BLE001"]
