@@ -62,7 +62,7 @@ def classify_page(text: str, chapter: str) -> str:
         if "contents" in sample or "table of contents" in sample:
             return "table-of-contents"
         return "front-matter"
-    if re.search(r"\bchapter\s+(?:[ivxlcdm]+|\d+)\b", sample, re.I):
+    if re.search(r"\bchapter\s+(?:[ivxlcdm]+|\d+)\b", sample, re.IGNORECASE):
         return "chapter-opening"
     return "chapter-body"
 
@@ -75,7 +75,7 @@ def classify_chunk(text: str) -> str:
     dialogue_marks = text.count('"') + text.count("“") + text.count("”")
     if dialogue_marks >= 6:
         return "dialogue-heavy-narrative"
-    if re.search(r"\bchapter\s+(?:[ivxlcdm]+|\d+)\b", sample[:180], re.I):
+    if re.search(r"\bchapter\s+(?:[ivxlcdm]+|\d+)\b", sample[:180], re.IGNORECASE):
         return "chapter-opening"
     if len(re.findall(r"\b(?:said|asked|replied|cried)\b", sample)) >= 4:
         return "dialogue-heavy-narrative"
