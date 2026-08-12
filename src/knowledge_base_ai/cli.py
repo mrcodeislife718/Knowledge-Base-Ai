@@ -10,7 +10,8 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from .pipeline import DEFAULT_COLLECTION, DEFAULT_MODEL, ingest as run_ingest, latest_manifest
+from .pipeline import DEFAULT_COLLECTION, DEFAULT_MODEL, latest_manifest
+from .pipeline import ingest as run_ingest
 from .store import VectorStore
 from .validation import validate_run
 
