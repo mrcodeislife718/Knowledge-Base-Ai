@@ -140,18 +140,19 @@ def test_revalidation_generates_active_research_gaps_for_stale_or_contested_clai
 
 
 def test_budget_stops_research_loop():
+    topics = ["alpha", "bravo", "charlie"]
     gaps = [
         KnowledgeGap(
             gap_id=f"g{i}",
-            question=f"Question {i} about topic alpha?",
+            question=f"Question about topic {topic}?",
             importance=1.0 - i * 0.1,
             evidence_missing=["independent evidence"],
             related_claims=[f"c{i}"],
             status="open",
         )
-        for i in range(3)
+        for i, topic in enumerate(topics)
     ]
-    claims = [_claim(f"c{i}", f"Topic alpha claim {i}") for i in range(3)]
+    claims = [_claim(f"c{i}", f"Topic {topic} claim") for i, topic in enumerate(topics)]
     provider = StaticResearchProvider(
         [ResearchSource("s1", "Topic alpha evidence", "Topic alpha evidence for claims.", "memory://s1", reliability=0.9)]
     )
