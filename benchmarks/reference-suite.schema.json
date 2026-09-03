@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Knowledge-Base-AI Benchmark Case",
+  "type": "object",
+  "required": ["case_id", "category", "query", "documents", "expected_ids"],
+  "properties": {
+    "case_id": {"type": "string"},
+    "category": {"enum": ["contradiction", "multi-hop", "stale-knowledge", "source-independence", "reflection"]},
+    "query": {"type": "string"},
+    "expected_ids": {"type": "array", "items": {"type": "string"}},
+    "expected_current_id": {"type": ["string", "null"]},
+    "expected_contradiction_pair": {
+      "type": ["array", "null"],
+      "prefixItems": [{"type": "string"}, {"type": "string"}],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "min_independent_origins": {"type": "integer", "minimum": 1},
+    "max_results": {"type": "integer", "minimum": 1},
+    "documents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["doc_id", "text", "topic", "source_id", "independent_origin"],
+        "properties": {
+          "doc_id": {"type": "string"},
+          "text": {"type": "string"},
+          "topic": {"type": "string"},
+          "source_id": {"type": "string"},
+          "independent_origin": {"type": "string"},
+          "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+          "freshness": {"type": "number", "minimum": 0, "maximum": 1},
+          "valid_from": {"type": ["string", "null"]},
+          "valid_until": {"type": ["string", "null"]},
+          "links": {"type": "array", "items": {"type": "string"}},
+          "contradicts": {"type": "array", "items": {"type": "string"}},
+          "reflection": {"type": ["string", "null"]}
+        }
+      }
+    }
+  }
+}
