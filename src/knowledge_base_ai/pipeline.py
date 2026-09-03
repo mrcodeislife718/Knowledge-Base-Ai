@@ -6,7 +6,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from .catalog import write_catalog_artifacts
+from .continual import connect_to_prior_knowledge, load_prior_claims
 from .document_io import document_metadata, extract_pages, source_sha256
+from .integrity import IngestionIntegrityGate
 from .knowledge_engine import KnowledgeCompiler, KnowledgeRepository
 from .logging_utils import configure_logging, log_event
 from .models import RunManifest
@@ -43,9 +45,9 @@ def ingest(
 ) -> RunManifest:
     """Execute one isolated, auditable document-ingestion run.
 
-    In addition to page/chunk/vector artifacts, each run compiles a typed Knowledge IR:
-    L0 evidence -> L1 claims -> L2 relations -> selective L4 reflections and open gaps.
-    Derived knowledge never overwrites raw evidence.
+    Each run preserves page/chunk evidence, compiles typed Knowledge IR, links new
+    claims to prior runs, and prevents high-risk document instructions from entering
+    derived knowledge. L0 raw artifacts are still retained for auditability.
     """
     logger = configure_logging(workdir, verbose)
     run_id = uuid.uuid4().hex[:12]
@@ -103,9 +105,40 @@ def ingest(
         manifest.knowledge_tree_path = str(tree_path)
         log_event(logger, "catalog_complete", "Inventory and knowledge tree written")
 
+        gate = IngestionIntegrityGate()
+        known_fingerprints: set[str] = set()
+        safe_chunk_rows: list[dict] = []
+        rejected: list[dict] = []
+        for chunk in chunk_rows:
+            assessment = gate.assess(chunk["text"], chunk["source_path"], known_fingerprints)
+            known_fingerprints.add(assessment.content_fingerprint)
+            if assessment.accepted:
+                safe_chunk_rows.append(chunk)
+            else:
+                rejected.append(
+                    {
+                        "chunk_id": chunk["chunk_id"],
+                        "risk_score": assessment.risk_score,
+                        "flags": assessment.flags,
+                        "fingerprint": assessment.content_fingerprint,
+                        "source_family": assessment.source_family,
+                    }
+                )
+        if rejected:
+            _write_jsonl(workdir / "integrity" / f"{run_id}-rejected.jsonl", rejected)
+        log_event(
+            logger,
+            "integrity_gate_complete",
+            "Adversarial ingestion gate completed before knowledge compilation",
+            accepted_chunks=len(safe_chunk_rows),
+            rejected_chunks=len(rejected),
+        )
+
         compiler = KnowledgeCompiler()
-        compiled = compiler.compile_chunks(chunk_rows)
+        compiled = compiler.compile_chunks(safe_chunk_rows)
         knowledge_repository = KnowledgeRepository(workdir / "knowledge_ir")
+        prior_claims = load_prior_claims(workdir / "knowledge_ir")
+        continual_stats = connect_to_prior_knowledge(compiled, prior_claims)
         knowledge_ir_path = knowledge_repository.write_run(run_id, compiled)
         manifest.knowledge_ir_path = str(knowledge_ir_path)
         manifest.evidence_count = len(compiled["evidence"])
@@ -117,13 +150,15 @@ def ingest(
         log_event(
             logger,
             "knowledge_compile_complete",
-            "Typed evidence-grounded Knowledge IR compiled",
+            "Typed evidence-grounded Knowledge IR compiled and linked to prior knowledge",
             evidence=manifest.evidence_count,
             claims=manifest.claim_count,
             entities=manifest.entity_count,
             relations=manifest.relation_count,
             reflections=manifest.reflection_count,
             gaps=manifest.knowledge_gap_count,
+            prior_claims_considered=continual_stats["prior_claims_considered"],
+            cross_run_relations=continual_stats["cross_run_relations"],
         )
 
         store = VectorStore(workdir / "chroma", effective_collection, model_name)
