@@ -4,7 +4,7 @@
     "microsoft-graphrag",
     "lightrag",
     "raptor",
-    "llamaindex-rag"
+    "llamaindex-conventional-rag"
   ],
   "minimum_cases": 300,
   "minimum_trials": 10,
