@@ -6,7 +6,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from .catalog import write_catalog_artifacts
+from .continual import connect_to_prior_knowledge, load_prior_claims
 from .document_io import document_metadata, extract_pages, source_sha256
+from .integrity import IngestionIntegrityGate
+from .knowledge_engine import KnowledgeCompiler, KnowledgeRepository
 from .logging_utils import configure_logging, log_event
 from .models import RunManifest
 from .store import VectorStore
@@ -40,7 +43,12 @@ def ingest(
     overlap_chars: int = 180,
     verbose: bool = False,
 ) -> RunManifest:
-    """Execute one isolated, auditable document-ingestion run."""
+    """Execute one isolated, auditable document-ingestion run.
+
+    Each run preserves page/chunk evidence, compiles typed Knowledge IR, links new
+    claims to prior runs, and prevents high-risk document instructions from entering
+    derived knowledge. L0 raw artifacts are still retained for auditability.
+    """
     logger = configure_logging(workdir, verbose)
     run_id = uuid.uuid4().hex[:12]
     effective_collection = f"{collection_name}-{run_id}"
@@ -87,13 +95,71 @@ def ingest(
         manifest.chapter_count = len({chunk.chapter for chunk in chunks})
         log_event(logger, "chunking_complete", "Chapter detection, labeling and semantic chunking complete", chapters=manifest.chapter_count, chunks=manifest.chunk_count)
 
-        _write_jsonl(workdir / "pages" / f"{run_id}.jsonl", [page.to_dict() for page in pages])
-        _write_jsonl(workdir / "chunks" / f"{run_id}.jsonl", [chunk.to_dict() for chunk in chunks])
+        page_rows = [page.to_dict() for page in pages]
+        chunk_rows = [chunk.to_dict() for chunk in chunks]
+        _write_jsonl(workdir / "pages" / f"{run_id}.jsonl", page_rows)
+        _write_jsonl(workdir / "chunks" / f"{run_id}.jsonl", chunk_rows)
 
         inventory_path, tree_path = write_catalog_artifacts(workdir, manifest, pages, chunks)
         manifest.inventory_path = str(inventory_path)
         manifest.knowledge_tree_path = str(tree_path)
         log_event(logger, "catalog_complete", "Inventory and knowledge tree written")
+
+        gate = IngestionIntegrityGate()
+        known_fingerprints: set[str] = set()
+        safe_chunk_rows: list[dict] = []
+        rejected: list[dict] = []
+        for chunk in chunk_rows:
+            assessment = gate.assess(chunk["text"], chunk["source_path"], known_fingerprints)
+            known_fingerprints.add(assessment.content_fingerprint)
+            if assessment.accepted:
+                safe_chunk_rows.append(chunk)
+            else:
+                rejected.append(
+                    {
+                        "chunk_id": chunk["chunk_id"],
+                        "risk_score": assessment.risk_score,
+                        "flags": assessment.flags,
+                        "fingerprint": assessment.content_fingerprint,
+                        "source_family": assessment.source_family,
+                    }
+                )
+        if rejected:
+            _write_jsonl(workdir / "integrity" / f"{run_id}-rejected.jsonl", rejected)
+        log_event(
+            logger,
+            "integrity_gate_complete",
+            "Adversarial ingestion gate completed before knowledge compilation",
+            accepted_chunks=len(safe_chunk_rows),
+            rejected_chunks=len(rejected),
+        )
+
+        compiler = KnowledgeCompiler()
+        compiled = compiler.compile_chunks(safe_chunk_rows)
+        knowledge_repository = KnowledgeRepository(workdir / "knowledge_ir")
+        prior_claims = load_prior_claims(workdir / "knowledge_ir")
+        continual_stats = connect_to_prior_knowledge(compiled, prior_claims)
+        knowledge_ir_path = knowledge_repository.write_run(run_id, compiled)
+        manifest.knowledge_ir_path = str(knowledge_ir_path)
+        manifest.evidence_count = len(compiled["evidence"])
+        manifest.claim_count = len(compiled["claims"])
+        manifest.entity_count = len(compiled["entities"])
+        manifest.relation_count = len(compiled["relations"])
+        manifest.reflection_count = len(compiled["reflections"])
+        manifest.knowledge_gap_count = len(compiled["gaps"])
+        log_event(
+            logger,
+            "knowledge_compile_complete",
+            "Typed evidence-grounded Knowledge IR compiled and linked to prior knowledge",
+            evidence=manifest.evidence_count,
+            claims=manifest.claim_count,
+            entities=manifest.entity_count,
+            relations=manifest.relation_count,
+            reflections=manifest.reflection_count,
+            gaps=manifest.knowledge_gap_count,
+            prior_claims_considered=continual_stats["prior_claims_considered"],
+            cross_run_relations=continual_stats["cross_run_relations"],
+        )
 
         store = VectorStore(workdir / "chroma", effective_collection, model_name)
         store.upsert_chunks(chunks)

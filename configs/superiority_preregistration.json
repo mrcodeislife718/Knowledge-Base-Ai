@@ -1,0 +1,57 @@
+{
+  "challenger": "knowledge-base-ai-level5-6",
+  "required_baselines": [
+    "microsoft-graphrag",
+    "lightrag",
+    "raptor",
+    "llamaindex-conventional-rag"
+  ],
+  "minimum_cases": 300,
+  "minimum_trials": 10,
+  "alpha": 0.05,
+  "superiority_margin": 0.01,
+  "noninferiority_margin": 0.01,
+  "minimum_power": 0.8,
+  "required_domains": [
+    "general-knowledge",
+    "scientific",
+    "technical",
+    "temporal",
+    "adversarial"
+  ],
+  "required_categories": [
+    "lookup",
+    "contradiction",
+    "multi-hop",
+    "stale-knowledge",
+    "source-independence",
+    "adversarial",
+    "citation-faithfulness",
+    "abstention",
+    "global-synthesis"
+  ],
+  "required_metrics": [
+    "resolved",
+    "recall",
+    "contradiction_resolution",
+    "multihop_accuracy",
+    "stale_knowledge_accuracy",
+    "source_independence_robustness",
+    "brier_score",
+    "latency_ms",
+    "estimated_cost"
+  ],
+  "claim_policy": {
+    "universal_superiority_forbidden": true,
+    "proxy_results_forbidden": true,
+    "missing_baseline_invalidates_claim": true,
+    "failed_native_execution_invalidates_claim": true,
+    "resource_mismatch_invalidates_claim": true,
+    "contamination_invalidates_claim": true,
+    "negative_control_failure_invalidates_claim": true,
+    "multiple_comparison_correction_required": true,
+    "leave_one_category_out_robustness_required": true,
+    "leave_one_trial_out_robustness_required": true,
+    "independent_replication_required_for_public_claim": true
+  }
+}
