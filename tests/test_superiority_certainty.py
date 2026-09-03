@@ -73,10 +73,12 @@ def test_holm_bonferroni_is_conservative():
 
 def test_robustness_requires_seed_stability():
     rows = []
+    categories = ("contradiction", "multi-hop")
     for trial in range(5):
         for case in range(10):
-            rows.append(obs("kb", f"c{case}", trial, True))
-            rows.append(obs("base", f"c{case}", trial, case < 6))
+            category = categories[case % 2]
+            rows.append(obs("kb", f"c{case}", trial, True, category=category))
+            rows.append(obs("base", f"c{case}", trial, case < 6, category=category))
     report = robustness_analysis(rows, "kb", "base")
     assert report.stable
     assert report.seed_win_rate == 1.0
@@ -94,8 +96,9 @@ def test_certificate_refuses_unverified_competitor():
     rows = []
     for trial in range(5):
         for case in range(40):
-            rows.append(obs("kb", f"c{case}", trial, True, latency_ms=5, estimated_cost=0.005))
-            rows.append(obs("graph", f"c{case}", trial, case < 20, latency_ms=20, estimated_cost=0.02))
+            category = "contradiction" if case % 2 == 0 else "multi-hop"
+            rows.append(obs("kb", f"c{case}", trial, True, category=category, latency_ms=5, estimated_cost=0.005))
+            rows.append(obs("graph", f"c{case}", trial, case < 20, category=category, latency_ms=20, estimated_cost=0.02))
     manifest = FrozenRunManifest(
         benchmark_commit="abc",
         dataset_hash="d",
