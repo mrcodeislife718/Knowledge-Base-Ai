@@ -129,7 +129,16 @@ class AdaptiveRetriever:
             confidence = sum(confidence_values) / len(confidence_values)
             marginal_gain = max(0.0, score - (ranked[len(selected)][1] if len(selected) < len(ranked) else 0.0))
             marginal_cost = 0.015 + token_estimate / max(1, plan.budget.token_budget) * 0.02
-            if len(selected) >= plan.budget.max_results or evidence_budget_reached(
+            selected_ids = {item.claim.claim_id for item in selected}
+            unresolved_counterevidence = (
+                plan.requires_contradiction_resolution
+                and any(
+                    contradiction_id in self.by_id and contradiction_id not in selected_ids
+                    for item in selected
+                    for contradiction_id in item.claim.contradictions
+                )
+            )
+            budget_reached = evidence_budget_reached(
                 started,
                 tokens_used=token_estimate,
                 compute_used=min(1.0, len(selected) / max(1, plan.budget.max_results)),
@@ -138,7 +147,8 @@ class AdaptiveRetriever:
                 budget=plan.budget,
                 marginal_gain=marginal_gain,
                 marginal_cost=marginal_cost,
-            ):
+            )
+            if len(selected) >= plan.budget.max_results or (budget_reached and not unresolved_counterevidence):
                 stopped = True
                 break
 
